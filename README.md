@@ -1,177 +1,279 @@
-# FPGA I²C Multi-Master Multi-Slave Implementation
+# FPGA I2C Multi-Master Multi-Slave Controller (Verilog)
 
-A Verilog implementation of the I²C (Inter-Integrated Circuit) protocol featuring multi-master arbitration, multi-slave communication, ACK/NACK handling, start/stop detection, and open-drain bus operation.
+A Verilog implementation of the I2C protocol supporting:
 
-## Overview
+- Multiple Masters
+- Multiple Slaves
+- Arbitration between Masters
+- Address Acknowledge (ACK)
+- Data Acknowledge (ACK)
+- Bidirectional Read/Write Transactions
+- Open-Drain SDA/SCL Bus Modeling
+- Clock Synchronization
+- Simulation and Verification in Vivado
 
-This project implements the I²C protocol from scratch using Verilog HDL. The design supports communication between multiple masters and multiple slaves connected to a shared open-drain bus. The implementation includes arbitration logic to resolve simultaneous bus access attempts, address matching, acknowledgment handling, and protocol state machines for both master and slave devices.
-
-The project was developed and verified through simulation in Vivado.
+This project was developed as part of FPGA and digital design learning to gain a deeper understanding of bus protocols, arbitration mechanisms, finite state machine design, and shared-bus communication.
 
 ---
 
 ## Features
 
-- I²C Master Controller
-- I²C Slave Controller
-- Multi-Master Bus Support
-- Multi-Slave Bus Support
-- Arbitration Detection and Handling
-- ACK/NACK Generation and Reception
-- Start Condition Detection
-- Stop Condition Detection
-- Open-Drain SDA and SCL Modeling
-- Parameterizable Slave Addresses
-- Functional Simulation and Verification
+### Multi-Master Support
+- Two independent I2C masters can initiate transactions.
+- Arbitration is performed according to the I2C standard.
+- A master transmitting a logic '1' while observing a logic '0' on SDA loses arbitration and releases the bus.
+
+### Multi-Slave Support
+- Two independent slave devices.
+- Address-based slave selection.
+- Each slave responds only to its configured address.
+
+### Bidirectional Communication
+Supports both:
+
+#### Write Transactions
+Master → Slave
+
+- Master sends slave address with R/W = 0
+- Slave acknowledges
+- Master transmits data byte
+- Slave acknowledges receipt
+
+#### Read Transactions
+Slave → Master
+
+- Master sends slave address with R/W = 1
+- Slave acknowledges
+- Slave transmits stored data
+- Master receives and acknowledges
+
+### ACK/NACK Handling
+- Address ACK
+- Data ACK
+- Timeout protection using ACK counters
+
+### Bus Arbitration
+- Detects arbitration loss during address transmission
+- Detects arbitration loss during data transmission
+- Losing master releases SDA immediately
+- Automatically waits for bus availability before retrying
 
 ---
 
-## Project Structure
+## Design Architecture
+
+### Top Level
 
 ```text
-fpga-i2c-multi-master-multi-slave
+                 +-----------+
+                 | Master 1  |
+                 +-----------+
+                       |
+                       |
+                       +---- SDA/SCL ----+
+                                          |
+                 +-----------+            |
+                 | Master 2  |            |
+                 +-----------+            |
+                                          |
+                 +-----------+            |
+                 | Slave 1   |            |
+                 +-----------+            |
+                                          |
+                 +-----------+            |
+                 | Slave 2   |            |
+                 +-----------+            |
+```
+
+---
+
+## Repository Structure
+
+```text
+fpga-i2c-multi-master-multi-slave/
 │
-├── docs
-│   └── schematic.png
-│
-├── rtl
+├── rtl/
 │   ├── Master.v
 │   ├── Slave.v
 │   └── top.v
 │
-├── sim
-│   ├── Waveform_1.png
-│   └── Waveform_2.png
-│
-├── tb
+├── tb/
 │   └── tb.v
+│
+├── sim/
+│   ├── Waveform_1.png
+│   ├── Waveform_2.png
+│   ├── Waveform_3.png
+│   └── Waveform_4.png
+│
+├── docs/
+│   └── schematic.png
 │
 └── README.md
 ```
 
 ---
 
-## Design Architecture
-
-The system consists of:
-
-- Master Controller FSM
-- Slave Controller FSM
-- Arbitration Logic
-- Address Matching Logic
-- ACK/NACK Handling
-- Shared Open-Drain SDA Bus
-- Shared Open-Drain SCL Bus
-
-### Block Diagram
-
-![Architecture](docs/schematic.png)
-
----
-
 ## Master FSM
 
-The master controller is responsible for:
-
-1. Generating START conditions
-2. Transmitting slave addresses
-3. Waiting for acknowledgments
-4. Transmitting data bytes
-5. Detecting arbitration loss
-6. Generating STOP conditions
-
-### Master States
-
-- IDLE
-- START
-- SEND_ADDR
-- ADDR_ACK
-- SEND_DATA
-- DATA_ACK
-- STOP
-- WAIT_BUS_FREE
+```text
+IDLE
+  |
+START
+  |
+SEND_ADDR
+  |
+ADDR_ACK
+  |
++-------------------+
+|                   |
+v                   v
+SEND_DATA      REC_DATA
+|                   |
+DATA_ACK      MASTER_ACK
+|                   |
++---------+---------+
+          |
+        STOP
+```
 
 ---
 
 ## Slave FSM
 
-The slave controller is responsible for:
-
-1. Detecting START conditions
-2. Receiving addresses
-3. Matching slave addresses
-4. Sending ACK responses
-5. Receiving data bytes
-6. Detecting STOP conditions
-
-### Slave States
-
-- IDLE
-- REC_ADDR
-- ADDR_ACK
-- ACK_WAIT
-- REC_DATA
-- DATA_ACK
+```text
+IDLE
+  |
+ADDR_MATCH
+  |
+ADDR_ACK
+  |
++-------------------+
+|                   |
+v                   v
+REC_DATA      SEND_DATA
+|                   |
+DATA_ACK      WAIT_M_ACK
+|                   |
++---------+---------+
+          |
+         IDLE
+```
 
 ---
 
-## Arbitration
+## Read / Write Operation
 
-The implementation supports multiple masters sharing the same bus.
+### Write Sequence
 
-When two masters attempt transmission simultaneously:
+```text
+Master
+  |
+  | START
+  |
+  | Address + W
+  |
+Slave ACK
+  |
+  | Data Byte
+  |
+Slave ACK
+  |
+ STOP
+```
 
-- SDA is monitored while SCL is high.
-- If a master transmits a logic '1' but observes a logic '0' on the bus, arbitration is lost.
-- The losing master releases the bus and waits until the bus becomes available again.
+### Read Sequence
 
-This behavior follows the I²C arbitration mechanism.
+```text
+Master
+  |
+  | START
+  |
+  | Address + R
+  |
+Slave ACK
+  |
+Slave sends Data
+  |
+Master ACK
+  |
+ STOP
+```
 
 ---
 
 ## Simulation Results
 
-### Address Transfer and ACK Reception
+### Waveform 1
+Basic address transmission and slave acknowledgement.
 
 ![Waveform 1](sim/Waveform_1.png)
 
-### Multi-Master Communication and Arbitration
+---
+
+### Waveform 2
+Multi-master arbitration and bus ownership transfer.
 
 ![Waveform 2](sim/Waveform_2.png)
 
 ---
 
-## Verification Scenarios
+### Waveform 3
+Successful write transaction from master to slave.
 
-The following scenarios were verified through simulation:
+![Waveform 3](sim/Waveform_3.png)
 
-- Single-master write transaction
-- Slave address matching
-- ACK generation and reception
-- Data transmission
-- Multi-master contention
+---
+
+### Waveform 4
+Bidirectional read transaction with slave transmitting data back to the master.
+
+![Waveform 4](sim/Waveform_4.png)
+
+---
+
+## Verification Performed
+
+### Address Phase
+- Correct address transmission
+- Address matching
+- ACK generation
+
+### Data Phase
+- Write transactions
+- Read transactions
+- ACK/NACK handling
+
+### Arbitration
+- Simultaneous master access
 - Arbitration loss detection
-- Multi-slave communication
-- Open-drain bus behavior
+- Bus release after arbitration loss
+- Retry after bus becomes idle
+
+### Multi-Slave Operation
+- Slave 1 communication
+- Slave 2 communication
+- Independent address matching
 
 ---
 
 ## Tools Used
 
 - Verilog HDL
-- Xilinx Vivado
-- Vivado Simulator
+- Xilinx Vivado Simulator
+- Git
+- GitHub
 
 ---
 
 ## Future Improvements
 
-- Read Transactions
-- Repeated Start Support
-- Clock Stretching
-- Configurable Bus Frequency
-- FPGA Hardware Validation
-- UVM-Based Verification Environment
+- Clock stretching support
+- Repeated START condition
+- Multiple-byte transfers
+- FIFO-based buffering
+- Wishbone / AXI-Lite interface
+- FPGA hardware validation on development boards
 
 ---
 
@@ -179,11 +281,6 @@ The following scenarios were verified through simulation:
 
 Tejasswat Rajindu
 
-B.Tech Electronics and Communication Engineering  
+B.Tech Electronics and Communication Engineering
+
 Manipal Institute of Technology, Bengaluru
-
----
-
-## License
-
-This project is released for educational and learning purposes.
