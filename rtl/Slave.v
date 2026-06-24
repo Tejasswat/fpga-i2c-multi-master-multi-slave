@@ -70,12 +70,16 @@ module control_slave #(parameter [7:0] SLAVE_ADDR = 8'h50)
     reg [2:0] state;
     reg [2:0] next_state;
     
-    localparam IDLE     = 3'd0;
-    localparam REC_ADDR = 3'd1;
-    localparam ADDR_ACK = 3'd2;
-    localparam REC_DATA = 3'd3;
-    localparam DATA_ACK = 3'd4;
-    localparam ACK_WAIT = 3'd5;
+    reg [7:0] tx_data;
+    
+    localparam IDLE         = 3'd0;
+    localparam REC_ADDR     = 3'd1;
+    localparam ADDR_ACK     = 3'd2;
+    localparam REC_DATA     = 3'd3;
+    localparam DATA_ACK     = 3'd4;
+    localparam ACK_WAIT     = 3'd5;
+    localparam SEND_DATA    = 3'd6;
+    localparam WAIT_M_ACK   = 3'd7;
     
     wire start_detect;
     
@@ -104,7 +108,7 @@ module control_slave #(parameter [7:0] SLAVE_ADDR = 8'h50)
             REC_ADDR : begin
                 if (stop_detect)
                     next_state = IDLE;
-                else if (bit_count == 7 && scl_fall)
+                else if (bit_count == 8 && scl_fall)
                     next_state = ADDR_ACK;
             end
             
@@ -112,8 +116,13 @@ module control_slave #(parameter [7:0] SLAVE_ADDR = 8'h50)
                 if (stop_detect)
                     next_state = IDLE;
                 else if (scl_fall) begin
-                    if (addr_match)
-                        next_state = REC_DATA;
+                    if (addr_match) begin
+                        if (addr_reg[0] == 1'b0)
+                            next_state = REC_DATA;
+                        else
+                            next_state = SEND_DATA;
+                    end
+                    
                     else
                         next_state = IDLE;
                 end
@@ -132,11 +141,26 @@ module control_slave #(parameter [7:0] SLAVE_ADDR = 8'h50)
                 else if (scl_fall)
                     next_state = IDLE;
             end
+            
             ACK_WAIT : begin
                 if (stop_detect)
                     next_state = IDLE;
                 else if (scl_rise)
                     next_state = REC_DATA;
+            end
+            
+            SEND_DATA : begin
+                if (stop_detect)
+                    next_state = IDLE;
+                else if (bit_count == 8 && scl_fall)
+                    next_state = WAIT_M_ACK;
+            end
+            
+            WAIT_M_ACK: begin
+                if (stop_detect)
+                    next_state = IDLE;
+                else if (scl_fall)
+                    next_state = IDLE;
             end
             
             default :
@@ -162,15 +186,16 @@ module control_slave #(parameter [7:0] SLAVE_ADDR = 8'h50)
             
 //        else if (state == ADDR_ACK || state == DATA_ACK || state == ACK_WAIT)
 //            bit_count <= 0;
-        else if (state == ADDR_ACK)
+
+        else if (state == ADDR_ACK || state == WAIT_M_ACK)
             bit_count <= 0;
         
-        else if ((state == REC_ADDR || state == REC_DATA) && scl_rise)
+        else if ((state == REC_ADDR || state == REC_DATA || state == SEND_DATA) && scl_rise)
             bit_count <= bit_count + 1;
             
     end
         
-    assign addr_match = (addr_reg == SLAVE_ADDR);
+    assign addr_match = (addr_reg[7:1] == SLAVE_ADDR);
     
     always @(posedge clk or posedge rst) begin
         if (rst)
@@ -195,7 +220,18 @@ module control_slave #(parameter [7:0] SLAVE_ADDR = 8'h50)
                     sda_drive = 1;
             end
             DATA_ACK : sda_drive = 1;
+            
+            SEND_DATA : sda_drive = ~tx_data[7];
         endcase
+    end
+    
+    always @(posedge clk or posedge rst) begin
+        if (rst)
+            tx_data <= 8'h00;
+        else if (state == ADDR_ACK)
+            tx_data <= data_reg;
+        else if (state == SEND_DATA && scl_fall)
+            tx_data <= tx_data << 1;
     end
     
 endmodule

@@ -46,9 +46,10 @@ module control_master(
     output reg scl_drive
     );
 
-    reg [2:0] state;
-    reg [2:0] next_state;
+    reg [3:0] state;
+    reg [3:0] next_state;
     reg [7:0] tx_data;
+    reg [7:0] rx_data;
     reg [3:0] bit_count;
     reg [7:0] data_reg;
     
@@ -75,14 +76,16 @@ module control_master(
     
     assign bus_idle = ~bus_busy;
         
-    localparam IDLE      = 3'd0;
-    localparam START     = 3'd1;
-    localparam SEND_ADDR = 3'd2;
-    localparam ADDR_ACK  = 3'd3;
-    localparam SEND_DATA = 3'd4;
-    localparam DATA_ACK  = 3'd5;
-    localparam STOP      = 3'd6;
-    localparam WAIT_BUS_FREE = 3'd7;
+    localparam IDLE          = 4'd0;
+    localparam START         = 4'd1;
+    localparam SEND_ADDR     = 4'd2;
+    localparam ADDR_ACK      = 4'd3;
+    localparam SEND_DATA     = 4'd4;
+    localparam DATA_ACK      = 4'd5;
+    localparam STOP          = 4'd6;
+    localparam WAIT_BUS_FREE = 4'd7;
+    localparam REC_DATA      = 4'd8;
+    localparam MASTER_ACK    = 4'd9;
     
     always @(*) begin
         next_state = state;
@@ -104,14 +107,18 @@ module control_master(
             SEND_ADDR : begin
                 if (arb_lost)// && scl_rise)
                     next_state = WAIT_BUS_FREE;
-                else if (bit_count == 7)
+                else if (bit_count == 8)
                     next_state = ADDR_ACK;
             end
             
             ADDR_ACK : begin
                 if (scl_fall) begin
-                    if(ack_received)
-                        next_state = SEND_DATA;
+                    if(ack_received) begin
+                        if (target_slave[0] == 1'b0)
+                            next_state = SEND_DATA;
+                        else
+                            next_state = REC_DATA;
+                    end
                     else //if (ack_count >= 5)
                         next_state = STOP;
                 end
@@ -147,6 +154,19 @@ module control_master(
                 else 
                     next_state = WAIT_BUS_FREE;
             end
+            
+            REC_DATA: begin
+                if (arb_lost)
+                    next_state = WAIT_BUS_FREE;
+                else if (bit_count == 8)
+                    next_state = MASTER_ACK;
+            end
+            
+            MASTER_ACK: begin
+                if (scl_fall)
+                    next_state = STOP;
+            end
+                     
         endcase
     end            
     
@@ -261,9 +281,9 @@ module control_master(
             else
                 bit_count <= bit_count + 1;
         end           
-        else if ((state == SEND_ADDR || state == SEND_DATA) && scl_fall && !arb_lost)
+        else if ((state == SEND_ADDR || state == SEND_DATA || state == REC_DATA) && scl_fall && !arb_lost)
             bit_count <= bit_count + 1;
-        else if (state == ADDR_ACK || state == DATA_ACK)
+        else if (state == ADDR_ACK || state == DATA_ACK || state == MASTER_ACK)
             bit_count <= 0;   
         else if (state == STOP)
             bit_count <= bit_count + 1;
@@ -284,7 +304,7 @@ module control_master(
     end
     
     //slave address
-    always @(posedge clk or posedge rst)begin
+    always @(posedge clk or posedge rst) begin
         if(rst)
             tx_data <= 8'h00;
     
@@ -292,6 +312,14 @@ module control_master(
             tx_data <= target_slave; //8'hA0;
         else if(state == SEND_ADDR && scl_fall)
             tx_data <= tx_data << 1;
+    end
+    
+    always @(posedge clk or posedge rst) begin
+        if (rst)
+            rx_data <= 8'h00;
+        
+        else if (state == REC_DATA && scl_fall)
+            rx_data <= {rx_data[6:0], sda};
     end
     
     always @(*) begin
