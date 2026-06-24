@@ -205,28 +205,28 @@ Master ACK
 ## Simulation Results
 
 ### Waveform 1
-Basic address transmission and slave acknowledgement.
+Multi-master arbitration Master-1
 
 ![Waveform 1](sim/Waveform_1.png)
 
 ---
 
 ### Waveform 2
-Multi-master arbitration and bus ownership transfer.
+Multi-master arbitration Master-2
 
 ![Waveform 2](sim/Waveform_2.png)
 
 ---
 
 ### Waveform 3
-Successful write transaction from master to slave.
+Bidirectional read transaction with slave-1 transmitting data back to the master-1.
 
 ![Waveform 3](sim/Waveform_3.png)
 
 ---
 
 ### Waveform 4
-Bidirectional read transaction with slave transmitting data back to the master.
+Bidirectional read transaction with slave-2 transmitting data back to the master-2.
 
 ![Waveform 4](sim/Waveform_4.png)
 
