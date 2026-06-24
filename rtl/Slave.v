@@ -85,7 +85,7 @@ module control_slave #(parameter [7:0] SLAVE_ADDR = 8'h50)
         sda_fall &&
         scl_sync2;
         
-    wire stop_detect = 1'b0;//sda_rise & scl_sync2;
+    wire stop_detect = sda_rise & scl_sync2;
     
     reg [7:0] addr_reg;
     reg [3:0] bit_count;
