@@ -101,24 +101,24 @@ module tb_top;
         
         $display("Master 1 READ Transaction");
 
-        target_slave_1 = 8'hA1;   // Slave 0x50 READ (Bit 0 is now 1!)
+        target_slave_1 = 8'hA1; 
         
         start_1 = 1;
         #10;
         start_1 = 0;
 
-        // Wait for the read transaction to finish
+
         #4000;
         
         $display("Master 2 READ Transaction");
 
-        target_slave_2 = 8'hC1;   // Slave 0x60 READ (Bit 0 is now 1!)
+        target_slave_2 = 8'hC1;
         
         start_2 = 1;
         #10;
         start_2 = 0;
 
-        // Wait for Master 2's read transaction to finish
+       
         #4000;
         
         $finish;

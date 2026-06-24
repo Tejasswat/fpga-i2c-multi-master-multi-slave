@@ -142,7 +142,7 @@ module control_master(
             
             STOP : begin
 //                if (scl_fall)
-                if (bit_count >= 9)     // <--- UPDATE THIS LINE
+                if (bit_count >= 9)
                     next_state = IDLE;
                 else
                     next_state = STOP;
@@ -275,7 +275,7 @@ module control_master(
             bit_count <= 0;
         else if (state == IDLE || state ==  WAIT_BUS_FREE) 
             bit_count <= 0;
-        else if (state == START) begin                        // <--- FIX 1b: Count up during START
+        else if (state == START) begin
             if (bit_count >= 5)
                 bit_count <= 0;
             else
@@ -309,7 +309,7 @@ module control_master(
             tx_data <= 8'h00;
     
         else if(state == START || state == WAIT_BUS_FREE)
-            tx_data <= target_slave; //8'hA0;
+            tx_data <= target_slave;
         else if(state == SEND_ADDR && scl_fall)
             tx_data <= tx_data << 1;
     end
@@ -333,8 +333,7 @@ module control_master(
                 ADDR_ACK  : sda_drive = 0;
                 SEND_DATA : sda_drive = ~data_reg[7];
                 DATA_ACK  : sda_drive = 0;
-//                STOP      : sda_drive = 1;
-                STOP      : sda_drive = (bit_count < 7) ? 1'b1 : 1'b0; // <--- FIX 2: Change 5 to 7
+                STOP      : sda_drive = (bit_count < 7) ? 1'b1 : 1'b0;
 
             endcase
         end
@@ -362,8 +361,8 @@ module control_master(
         if(rst)
             ack_received <= 0;
         else if (state != ADDR_ACK && state != DATA_ACK)
-            ack_received <= 0; // Clear it when not checking for ACK
-        else if (scl_rise) // FIX: Safely sample SDA exactly when SCL goes HIGH
+            ack_received <= 0;
+        else if (scl_rise)
             ack_received <= ~sda;
     end
     
