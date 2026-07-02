@@ -29,6 +29,7 @@ This project was developed as part of FPGA and digital design learning to gain a
 - Each slave responds only to its configured address.
 
 ### Bidirectional Communication
+
 Supports both:
 
 #### Write Transactions
@@ -45,7 +46,7 @@ Slave → Master
 - Master sends slave address with R/W = 1
 - Slave acknowledges
 - Slave transmits stored data
-- Master receives and acknowledges
+- Master receives and acknowledges.
 
 ### ACK/NACK Handling
 - Address ACK
@@ -109,8 +110,25 @@ fpga-i2c-multi-master-multi-slave/
 ├── docs/
 │   └── schematic.png
 │
+├── i2c_bus_implementation_report.pdf
+│
 └── README.md
 ```
+
+---
+
+## Documentation
+
+The repository includes a comprehensive project report containing:
+
+- Introduction to the I2C protocol
+- System architecture and design methodology
+- Master and Slave RTL implementation
+- Multi-master arbitration mechanism
+- Simulation and verification results
+- Conclusion and future scope
+
+📄 **Project Report:** [i2c_bus_implementation_report.pdf](i2c_bus_implementation_report.pdf)
 
 ---
 
@@ -205,28 +223,24 @@ Master ACK
 ## Simulation Results
 
 ### Waveform 1
-Multi-master arbitration Master-1
 
 ![Waveform 1](sim/Waveform_1.png)
 
 ---
 
 ### Waveform 2
-Multi-master arbitration Master-2
 
 ![Waveform 2](sim/Waveform_2.png)
 
 ---
 
 ### Waveform 3
-Bidirectional read transaction with slave-1 transmitting data back to the master-1.
 
 ![Waveform 3](sim/Waveform_3.png)
 
 ---
 
 ### Waveform 4
-Bidirectional read transaction with slave-2 transmitting data back to the master-2.
 
 ![Waveform 4](sim/Waveform_4.png)
 
@@ -279,8 +293,4 @@ Bidirectional read transaction with slave-2 transmitting data back to the master
 
 ## Author
 
-Tejasswat Rajindu
-
-B.Tech Electronics and Communication Engineering
-
-Manipal Institute of Technology, Bengaluru
+**Tejasswat Rajindu**
